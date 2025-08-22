@@ -1,0 +1,25 @@
+# Pliki konfiguracyjne
+wp-config.php
+.htaccess
+
+# Pliki systemowe i logi
+.DS_Store
+Thumbs.db
+debug.log
+error_log
+
+# Foldery generowane przez managery pakietów
+node_modules/
+vendor/
+
+# Archiwa
+*.zip
+*.tar
+*.gz
+*.rar
+
+# Pliki generowane przez edytory
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
