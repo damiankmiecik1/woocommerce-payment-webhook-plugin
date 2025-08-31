@@ -52,7 +52,6 @@ function msp_zapisz_wartosc_pola_referencyjnego( $order, $data ) {
     if ( isset( $_POST['billing_msp_reference'] ) && ! empty( $_POST['billing_msp_reference'] ) ) {
         $reference_value = sanitize_text_field( $_POST['billing_msp_reference'] );
         $order->update_meta_data( 'msp_reference_number', $reference_value );
-        $order->save();
     }
 }
 add_action( 'woocommerce_checkout_create_order', 'msp_zapisz_wartosc_pola_referencyjnego', 10, 2 );
@@ -87,35 +86,46 @@ function msp_register_webhook_endpoint() {
 add_action( 'rest_api_init', 'msp_register_webhook_endpoint' );
 
 /**
+ * Funkcja pomocnicza do weryfikacji podpisu HMAC.
+ */
+function _msp_is_signature_valid( WP_REST_Request $request ) {
+    $received_signature = $request->get_header( 'x-imoje-signature' );
+    $payload            = $request->get_body();
+    $secret             = MSP_WEBHOOK_SECRET;
+
+    if ( ! $received_signature ) {
+        return new WP_Error( 'missing_signature', 'Brak nagłówka X-Imoje-Signature.', [ 'status' => 401 ] );
+    }
+
+    $expected_signature = hash_hmac( 'sha256', $payload, $secret );
+
+    if ( ! hash_equals( $expected_signature, $received_signature ) ) {
+        return new WP_Error( 'invalid_signature', 'Nieprawidłowy podpis HMAC.', [ 'status' => 403 ] );
+    }
+
+    return true;
+}
+
+/**
  * Główna funkcja obsługująca przychodzące żądanie webhooka.
- * Wykonuje weryfikację podpisu, a następnie aktualizuje zamówienie.
  */
 function msp_handle_webhook_request( WP_REST_Request $request ) {
 
-    $received_signature = $request->get_header( 'x-msp-signature' );
+    $signature_check = _msp_is_signature_valid( $request );
+    if ( is_wp_error( $signature_check ) ) {
+        error_log( 'Błąd webhooka: ' . $signature_check->get_error_message() );
+        return $signature_check;
+    }
+
     $payload = $request->get_body();
-
-    if ( ! $received_signature ) {
-        error_log( 'Błąd webhooka: Brak nagłówka X-Msp-Signature.' );
-        return new WP_REST_Response( [ 'status' => 'error', 'message' => 'Missing signature.' ], 401 );
-    }
-
-    // Generuje oczekiwany podpis używając sekretnego klucza zdefiniowanego jako stała.
-    $expected_signature = hash_hmac( 'sha256', $payload, MSP_WEBHOOK_SECRET );
-
-    if ( ! hash_equals( $expected_signature, $received_signature ) ) {
-        error_log( 'Błąd webhooka: Nieprawidłowy podpis.' );
-        return new WP_REST_Response( [ 'status' => 'error', 'message' => 'Invalid signature.' ], 403 );
-    }
-
     $data = json_decode( $payload, true );
 
-    if ( json_last_error() !== JSON_ERROR_NONE || empty( $data['order_id'] ) ) {
-        error_log( 'Błąd webhooka: Nieprawidłowy JSON lub brak order_id.' );
-        return new WP_REST_Response( [ 'status' => 'error', 'message' => 'Invalid JSON or missing order_id.' ], 400 );
+    if ( json_last_error() !== JSON_ERROR_NONE || empty( $data['orderId'] ) ) {
+        error_log( 'Błąd webhooka: Nieprawidłowy JSON lub brak orderId.' );
+        return new WP_REST_Response( [ 'status' => 'error', 'message' => 'Invalid JSON or missing orderId.' ], 400 );
     }
 
-    $order_id = absint( $data['order_id'] );
+    $order_id = absint( $data['orderId'] );
     $order = wc_get_order( $order_id );
 
     if ( ! $order ) {
