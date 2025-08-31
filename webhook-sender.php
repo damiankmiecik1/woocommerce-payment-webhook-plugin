@@ -6,14 +6,15 @@ echo '<h1>Symulator Webhooka imoje</h1>';
 
 // KONFIGURACJA
 $target_url = get_site_url() . '/wp-json/msp/v1/webhook';
-$secret_key = 'tajny_klucz_do_podpisu_webhooka_123';
+// To jest klucz tylko do celów demonstracyjnych. Ta wartość musi być zgodna z wartością MSP_WEBHOOK_SECRET w pliku wtyczki.
+$secret_key = 'przykladowy-dlugi-sekretny-klucz-zmien-go';
 
 // Przykładowy payload, wzorowany na dokumentacji imoje
 $payload_data = [
-    'orderId'       => 75,
+    'orderId'       => 1, // Zmień na ID istniejącego zamówienia w sklepie
     'transactionId' => 'TRN-' . time(),
     'status'        => 'settled',
-    'amount'        => 5000, // Kwota w groszach (50.00 PLN)
+    'amount'        => 5000,
     'currency'      => 'PLN',
 ];
 
