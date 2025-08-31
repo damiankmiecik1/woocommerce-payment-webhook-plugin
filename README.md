@@ -38,7 +38,7 @@ Wtyczka składa się z dwóch głównych modułów:
     *   Filtry i Akcje (Hooks)
     *   REST API (rejestracja niestandardowych tras)
     *   Metadane (Post Meta / Order Meta)
-    *   Praca z obiektem `WC_Order`
+    *   Praca z obiektem `WC_Order`, WordPress HTTP API ( wp_remote_post )
 *   **Frontend:** `HTML`, `CSS` (podstawy, w kontekście formularzy WP)
 *   **API & Protokoły:** `HTTP (POST)`, `JSON`, `Webhooki`, `HMAC SHA256`
 *   **Narzędzia:** `Git`, `Postman` (do testowania API), `WP-CLI` (opcjonalnie do zarządzania WP), `WP_DEBUG`
@@ -54,29 +54,23 @@ Wtyczka składa się z dwóch głównych modułów:
 4.  Wpisz dowolną wartość i złóż zamówienie.
 5.  W panelu admina, w szczegółach tego zamówienia, wpisana wartość powinna być widoczna pod adresem bilingowym.
 
-### 2. Testowanie Webhooka (za pomocą Postman)
-1.  Stwórz w WooCommerce testowe zamówienie i ustaw jego status na "W oczekiwaniu na płatność". Zanotuj jego ID (np. `123`).
-2.  Skonfiguruj żądanie w Postman:
-    *   Metoda: `POST`
-    *   URL: `https://twojadomena.pl/wp-json/msp/v1/webhook`
-3.  W zakładce **Body** wybierz `raw` i `JSON`, a następnie wklej:
-    ```json
-    {
-        "event_type": "payment_completed",
-        "order_id": 123,
-        "transaction_id": "txn_abcdef123456",
-        "amount": "150.75"
-    }
-    ```
-    *(Pamiętaj, aby podmienić `123` na ID swojego zamówienia)*
-4.  Wygeneruj podpis HMAC SHA256 (np. używając narzędzia online) dla powyższych danych i sekretnego klucza zdefiniowanego w pliku wtyczki (w stałej MSP_WEBHOOK_SECRET).
-5.  W zakładce **Headers** dodaj nowy nagłówek:
-    *   KEY: `X-Msp-Signature`
-    *   VALUE: `tutaj-wklej-wygenerowany-podpis`
-6.  Wyślij żądanie. Oczekiwana odpowiedź to `Status: 200 OK`.
-7.  Odśwież stronę zamówienia w panelu WooCommerce – jego status powinien zmienić się na "W trakcie realizacji".
+### 2. Testowanie Webhooka (za pomocą skryptu symulującego)
+W repozytorium znajduje się plik webhook-sender.php, który jest prostym skryptem symulującym wysyłanie powiadomienia o transakcji przez zewnętrzną bramkę płatniczą, wzorowaną na dokumentacji technicznej imoje.
+
+Sposób użycia:
+1. Umieść plik webhook-sender.php w głównym folderze swojej instalacji WordPressa.
+2. Upewnij się, że masz wtyczkę "Moje Super Płatności" aktywną.
+3. W plikach moje-super-platnosci.php i webhook-sender.php upewnij się, że używasz tego samego, unikalnego sekretnego klucza.
+4. W pliku webhook-sender.php zmień wartość orderId na ID istniejącego zamówienia w Twoim sklepie (najlepiej ze statusem "Oczekujące na płatność").
+5. Uruchom skrypt, wchodząc na adres http://twoja-strona.test/webhook-sender.php w przeglądarce.
+
+Skrypt używa WordPress HTTP API (wp_remote_post) do wysłania żądania POST do endpointu wtyczki, a następnie wyświetla pełną odpowiedź z serwera. Po pomyślnym wykonaniu (kod 200 OK), status zamówienia w WooCommerce powinien zmienić się na "W trakcie realizacji".
 
 ---
+
+## Refaktoryzacja
+
+W najnowszej wersji wtyczki przeprowadzono refaktoryzację kodu w celu poprawy jego czytelności i struktury. Logika odpowiedzialna za weryfikację podpisu HMAC została wydzielona z głównej funkcji obsługującej webhook do dedykowanej, prywatnej funkcji pomocniczej (_msp_is_signature_valid). Ułatwia to utrzymanie oraz testowanie kodu.
 
 ## Autor
 
